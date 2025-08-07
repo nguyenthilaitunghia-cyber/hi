@@ -1,0 +1,227 @@
+<body>
+ <header>
+  <img alt="B52 Plane Icon" src="b52-plane-icon.png" style="height: 50px; vertical-align: middle;"/>
+  B52 CRASH GAME
+ </header>
+ <div id="require-join">
+  <p>
+   🎯 Bạn cần tham gia nhóm Telegram để chơi game:
+  </p>
+  <a class="telegram-btn" href="https://t.me/htuanpremium0" onclick="markJoined()" target="_blank">
+   Tham gia ngay
+  </a>
+ </div>
+ <div id="join-telegram" style="display: none;">
+  <p>
+   💸 Bạn đã hết xu! Tham gia nhóm Telegram sau để nhận lại 10.000 đ:
+  </p>
+  <a class="telegram-btn" href="https://t.me/htuanpremium1" onclick="restoreBalance()" target="_blank">
+   Nhận lại xu
+  </a>
+ </div>
+ <div id="balance">
+  Số dư:
+  <span id="balance-value">
+   0
+  </span>
+  đ
+ </div>
+ <div id="controls">
+  <input id="bet-amount" max="10000" min="100" placeholder="Mức cược" type="number" value="1000"/>
+  <button id="bet-btn">
+   ĐẶT CƯỢC
+  </button>
+  <button disabled="" id="stop-btn">
+   DỪNG
+  </button>
+ </div>
+ <div id="multiplier">
+  x1.00
+ </div>
+ <div id="game-area">
+  <img alt="B52 Plane Icon" id="plane" src="b52-plane-icon.png">
+  </img>
+ </div>
+ <script>
+  const plane = document.getElementById("plane");
+    const multiplierEl = document.getElementById("multiplier");
+    const stopBtn = document.getElementById("stop-btn");
+    const betBtn = document.getElementById("bet-btn");
+    const betAmountInput = document.getElementById("bet-amount");
+    const balanceValue = document.getElementById("balance-value");
+    const telegramPrompt = document.getElementById("join-telegram");
+    const requireJoin = document.getElementById("require-join");
+
+    let multiplier = 1.0;
+    let interval;
+    let crashed = false;
+    let betPlaced = false;
+    let cashedOut = false;
+    let balance = 0;
+    let betAmount = 0;
+    let gameLocked = false;
+
+    window.addEventListener("load", () => {
+      if (localStorage.getItem("joinedMainTelegram") !== "true") {
+        showRequireJoin();
+        return;
+      }
+
+      if (sessionStorage.getItem("balance") !== null) {
+        balance = parseInt(sessionStorage.getItem("balance"));
+      } else {
+        balance = 10000;
+        sessionStorage.setItem("balance", balance);
+      }
+
+      balanceValue.textContent = balance;
+      if (balance <= 0) {
+        lockGame();
+      } else {
+        showGame();
+      }
+    });
+
+    function showRequireJoin() {
+      requireJoin.style.display = "block";
+      document.getElementById("balance").style.display = "none";
+      document.getElementById("controls").style.display = "none";
+      document.getElementById("multiplier").style.display = "none";
+      document.getElementById("game-area").style.display = "none";
+    }
+
+    function markJoined() {
+      localStorage.setItem("joinedMainTelegram", "true");
+      setTimeout(() => location.reload(), 1000);
+    }
+
+    function showGame() {
+      requireJoin.style.display = "none";
+      telegramPrompt.style.display = "none";
+      document.getElementById("balance").style.display = "block";
+      document.getElementById("controls").style.display = "flex";
+      document.getElementById("multiplier").style.display = "block";
+      document.getElementById("game-area").style.display = "flex";
+    }
+
+    function lockGame() {
+      gameLocked = true;
+      betBtn.disabled = true;
+      telegramPrompt.style.display = "block";
+      document.getElementById("balance").style.display = "none";
+      document.getElementById("controls").style.display = "none";
+      document.getElementById("multiplier").style.display = "none";
+      document.getElementById("game-area").style.display = "none";
+    }
+
+    function restoreBalance() {
+      if (localStorage.getItem("joinedBonusTelegram") === "true") {
+        alert("❗ Bạn đã nhận xu trước đó rồi.");
+        return;
+      }
+
+      balance = 10000;
+      sessionStorage.setItem("balance", balance);
+      balanceValue.textContent = balance;
+      localStorage.setItem("joinedBonusTelegram", "true");
+      gameLocked = false;
+      betBtn.disabled = false;
+      alert("✅ Bạn đã nhận lại 10.000 đ. Tiếp tục chơi nhé!");
+      showGame();
+    }
+
+    function getCrashPoint() {
+      const r = Math.random() * 100;
+      if (r < 5) return 1.0;
+      if (r < 55) return +(Math.random() * 0.8 + 1.2).toFixed(2);
+      if (r < 85) return +(Math.random() * 3 + 2.0).toFixed(2);
+      if (r < 100) return +(Math.random() * 10 + 5.0).toFixed(2);
+      return +(Math.random() * 185 + 15.0).toFixed(2);
+    }
+
+    function startGame() {
+      crashed = false;
+      cashedOut = false;
+      multiplier = 1.0;
+      updateMultiplier();
+      plane.style.transform = `translateY(0)`;
+
+      const crashPoint = getCrashPoint();
+      interval = setInterval(() => {
+        if (crashed || cashedOut) return;
+
+        multiplier += 0.01 + multiplier * 0.01;
+        multiplier = Math.round(multiplier * 100) / 100;
+        updateMultiplier();
+
+        const y = -multiplier * 10;
+        plane.style.transform = `translateY(${y}px)`;
+
+        if (multiplier >= crashPoint) {
+          crash();
+        }
+      }, 100);
+    }
+
+    function updateMultiplier() {
+      multiplierEl.textContent = `x${multiplier.toFixed(2)}`;
+    }
+
+    function crash() {
+      clearInterval(interval);
+      crashed = true;
+      stopBtn.disabled = true;
+      alert("💥 Máy bay đã nổ! Bạn thua cược.");
+      checkAfterCrash();
+    }
+
+    function cashOut() {
+      if (crashed || cashedOut) return;
+      cashedOut = true;
+      clearInterval(interval);
+
+      const profit = Math.floor(betAmount * multiplier);
+      balance += profit;
+      sessionStorage.setItem("balance", balance);
+      balanceValue.textContent = balance;
+      stopBtn.disabled = true;
+      alert(`✅ Bạn đã dừng tại x${multiplier.toFixed(2)} và nhận ${profit} đ!`);
+      resetForNextRound();
+    }
+
+    function resetForNextRound() {
+      betPlaced = false;
+      stopBtn.disabled = true;
+      plane.style.transform = `translateY(0)`;
+      multiplier = 1.0;
+      updateMultiplier();
+    }
+
+    function checkAfterCrash() {
+      resetForNextRound();
+      if (balance <= 0) {
+        lockGame();
+      }
+    }
+
+    betBtn.onclick = () => {
+      if (gameLocked || betPlaced) return;
+
+      betAmount = parseInt(betAmountInput.value);
+      if (isNaN(betAmount) || betAmount > balance || betAmount < 100) {
+        alert("❌ Số tiền cược không hợp lệ.");
+        return;
+      }
+
+      balance -= betAmount;
+      sessionStorage.setItem("balance", balance);
+      balanceValue.textContent = balance;
+
+      betPlaced = true;
+      stopBtn.disabled = false;
+      startGame();
+    };
+
+    stopBtn.onclick = cashOut;
+ </script>
+</body>
